@@ -17,17 +17,127 @@ const x = d3.scaleTime().range([0, graphWidth])
 const y = d3.scaleLinear().range([graphHeight, 0])
 
 // Axes groups
-const xAxisGroups = graph.append('g')
+const xAxisGroup = graph.append('g')
     .attr('class', 'x-axis')
     .attr('transform', `translate(0, ${graphHeight})`)
 
-const yAxisGroup = graphWidth.append('g')
+const yAxisGroup = graph.append('g')
     .attr('class', 'y-axis')
 
+// D3 line path generator
+const line = d3.line()
+    .x(function(d) { return x(new Date(d.date)) })
+    .y(function(d) { return y(d.distance) })
+
+// Line path element
+const path = graph.append('path')
+
+// Create dotted line group and append to graph
+const dottedLines = graph.append('g')
+    .attr('class', 'lines')
+    .style('opacity', 0)
+
+// Create x dotted line and append to dotted line group
+const xDottedLine = dottedLines.append('line')
+    .attr('stroke', '#aaa')
+    .attr('stroke-width', 1)
+    .attr('stroke-dasharray', 4)
+
+// Create y dotted line and append to dotted line group
+const yDotteLine = dottedLines.append('line')
+    .attr('stroke', '#aaa')
+    .attr('stroke-width', 1)
+    .attr('stroke-dasharray', 4)
+
 const update = (data) => {
+
+    data = data.filter(item => item.activity == activity)
+
+    // Sort data based on date objects
+    data.sort((a, b) => new Date(a.date) - new Date(b.date))
+
     // Set scale domains
     x.domain(d3.extent(data, d => new Date(d.date)))
     y.domain([0, d3.max(data, d => d.distance)])
+
+    // Update path data
+    path.data([data])
+        .attr('fill', 'none')
+        .attr('stroke', '#00bfa5')
+        .attr('stroke-width', 2)
+        .attr('d', line)
+
+    // Create circles for objects
+    const circles = graph.selectAll('circle')
+        .data(data)
+
+    // Remove unwanted points
+    circles.exit().remove()
+
+    // Update current points
+    circles.attr('r', 4)
+        .attr('cx', d => x(new Date(d.date)))
+        .attr('cy', d => y(d.distance))
+
+    // Add new points
+    circles.enter()
+        .append('circle')
+        .attr('r', 4)
+        .attr('cx', d => x(new Date(d.date)))
+        .attr('cy', d => y(d.distance))
+        .attr('fill', '#ccc')
+
+    graph.selectAll('circle')
+        .on('mouseover', (d, i, n) => {
+            d3.select(n[i])
+                .transition().duration(100)
+                .attr('r', 8)
+                .attr('fill', '#fff');
+
+            // Set x dotted line coords (x1, x2, y1, y2)
+            xDottedLine
+                .attr('x1', x(new Date(d.date)))
+                .attr('x2', x(new Date(d.date)))
+                .attr('y1', graphHeight)
+                .attr('y2', y(d.distance))
+
+            // Set y dotted line coords (x1, x2, y1, y2)
+            yDotteLine
+                .attr('x1', 0)
+                .attr('x2', x(new Date(d.date)))
+                .attr('y1', y(d.distance))
+                .attr('y2', y(d.distance))
+
+            // Show the dotted line group (.style, opacity)
+            dottedLines.style('opacity', 1);
+        })
+        .on('mouseleave', (d, i, n) => {
+            d3.select(n[i])
+                .transition().duration(100)
+                .attr('r', 4)
+                .attr('fill', '#ccc');
+
+            // Hide the dotted line group (.style, opacity)
+            dottedLines.style('opacity', 0)
+        })
+
+    // Create axes
+    const xAxis = d3.axisBottom(x)
+        .ticks(4)
+        .tickFormat(d3.timeFormat('%b %d'))
+
+    const yAxis = d3.axisLeft(y)
+        .ticks(4)
+        .tickFormat(d => d + 'm')
+
+    // Call axes
+    xAxisGroup.call(xAxis)
+    yAxisGroup.call(yAxis)
+
+    // Rotate axis text
+    xAxisGroup.selectAll('text')
+        .attr('transform', 'rotate(-40)')
+        .attr('text-anchor', 'end')
 }
 
 // Data and firestore

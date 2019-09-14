@@ -21,6 +21,9 @@ btns.forEach(btn => {
 
         // Set text of form span
         formAct.textContent = activity
+
+        // Call the update function
+        update(data)
     })
 })
 
